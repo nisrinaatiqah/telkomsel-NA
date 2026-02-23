@@ -43,7 +43,7 @@ const AddSiteModal = ({ isOpen, onClose, onRefresh, currentElement, currentRegio
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh]">
         <div className="p-6 bg-red-600 text-white flex justify-between items-center rounded-t-[2.5rem]">
-          <h2 className="text-xl font-black uppercase italic italic tracking-tighter">Add New {currentElement} - {currentRegion}</h2>
+          <h2 className="text-xl font-black uppercase italic tracking-tighter">Add New {currentElement} - {currentRegion}</h2>
           <button onClick={onClose} className="hover:rotate-90 transition-transform"><X /></button>
         </div>
 

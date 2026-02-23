@@ -2,18 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ArrowLeft, FileSpreadsheet, Database, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, LayoutGrid, Database, Users, Zap } from 'lucide-react';
 import axios from 'axios'; 
 import BatchImportModal from '../../components/BatchImportModal';
+
+// --- HELPER PEMBERSIH ANGKA ---
+const cleanNum = (v) => {
+  if (v === undefined || v === null || v === "") return 0;
+  let s = String(v).trim().replace('%', '');
+  if (s.includes(',') && s.includes('.')) return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+  if (s.includes(',')) return parseFloat(s.replace(',', '.')) || 0;
+  return parseFloat(s) || 0;
+};
 
 const GssMap = ({ element }) => {
   const navigate = useNavigate();
   const [geoData, setGeoData] = useState(null);
   const [sites, setSites] = useState([]);
-  const [statsByRegion, setStatsByRegion] = useState({}); // Per Provinsi
-  const [statsByRegional, setStatsByRegional] = useState({}); // Per Regional (Sumbagut, dll)
+  const [statsByRegion, setStatsByRegion] = useState({});
+  const [statsByRegional, setStatsByRegional] = useState({});
   const [loading, setLoading] = useState(true);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('occupancy'); // 'occupancy' atau 'vendor'
 
   const regionalMapping = {
     "Regional Sumbagut": ["ACEH", "SUMATERA UTARA"],
@@ -26,7 +36,7 @@ const GssMap = ({ element }) => {
     "Regional Bali Nusra": ["BALI", "NUSA TENGGARA BARAT", "NUSA TENGGARA TIMUR"],
     "Regional Kalimantan": ["KALIMANTAN BARAT", "KALIMANTAN TENGAH", "KALIMANTAN SELATAN", "KALIMANTAN TIMUR", "KALIMANTAN UTARA"],
     "Regional Sulawesi": ["SULAWESI SELATAN", "SULAWESI BARAT", "SULAWESI TENGGARA", "SULAWESI TENGAH", "SULAWESI UTARA", "GORONTALO"],
-    "Regional Papua & Maluku": ["MALUKU", "MALUKU UTARA", "PAPUA", "PAPUA BARAT"]
+    "Regional Papua & Maluku": ["MALUKU", "MALUKU UTARA", "PAPUA", "PAPUA BARAT", "PAPUA TENGAH", "PAPUA SELATAN", "PAPUA PEGUNUNGAN", "PAPUA BARAT DAYA"]
   };
 
   useEffect(() => {
@@ -40,151 +50,209 @@ const GssMap = ({ element }) => {
       const res = await axios.get(`http://localhost:5001/api/sites/GSS`);
       const data = Array.isArray(res.data) ? res.data : [];
       setSites(data);
-      processStats(data);
-    } catch (err) {
-      console.error("Gagal load data GSS", err);
-    } finally {
-      setLoading(false);
-    }
+      processAdvancedStats(data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const processStats = (allSites) => {
-    const provStats = {};
-    const regStats = {};
-
+  const processAdvancedStats = (allSites) => {
+    const pStats = {};
+    const rStats = {};
     Object.keys(regionalMapping).forEach(reg => {
-      regStats[reg] = { count: 0, totalOcc: 0, avgOcc: 0 };
+      rStats[reg] = { count: 0, totalOcc: 0, totalUsage: 0, ericsson: 0, nokia: 0, avgOcc: 0 };
     });
 
     allSites.forEach(site => {
-      const provName = (site.region || "UNKNOWN").toUpperCase().trim();
-      const occValue = parseFloat(String(site.bhca_occupancy || "0").replace(',', '.'));
+      const prov = (site.region || "UNKNOWN").toUpperCase().trim();
+      const occ = cleanNum(site.bhca_occupancy);
+      const usage = cleanNum(site.bhca_usage);
+      const vendor = String(site.vendor || "").toUpperCase();
 
-      if (!provStats[provName]) provStats[provName] = { count: 0, totalOcc: 0, avgOcc: 0 };
-      provStats[provName].count += 1;
-      provStats[provName].totalOcc += isNaN(occValue) ? 0 : occValue;
+      if (!pStats[prov]) pStats[prov] = { count: 0, totalOcc: 0, totalUsage: 0, ericsson: 0, nokia: 0 };
+      pStats[prov].count += 1;
+      pStats[prov].totalOcc += occ;
+      pStats[prov].totalUsage += usage;
+      if (vendor.includes("ERICSSON")) pStats[prov].ericsson += 1;
+      else if (vendor.includes("NOKIA")) pStats[prov].nokia += 1;
 
-      const targetReg = Object.keys(regionalMapping).find(r => regionalMapping[r].includes(provName));
+      const targetReg = Object.keys(regionalMapping).find(reg => regionalMapping[reg].includes(prov));
       if (targetReg) {
-        regStats[targetReg].count += 1;
-        regStats[targetReg].totalOcc += isNaN(occValue) ? 0 : occValue;
+        rStats[targetReg].count += 1;
+        rStats[targetReg].totalOcc += occ;
+        rStats[targetReg].totalUsage += usage;
+        if (vendor.includes("ERICSSON")) rStats[targetReg].ericsson += 1;
+        else if (vendor.includes("NOKIA")) rStats[targetReg].nokia += 1;
       }
     });
 
-    Object.keys(provStats).forEach(k => provStats[k].avgOcc = (provStats[k].totalOcc / provStats[k].count).toFixed(2));
-    Object.keys(regStats).forEach(k => {
-      if(regStats[k].count > 0) regStats[k].avgOcc = (regStats[k].totalOcc / regStats[k].count).toFixed(2);
+    Object.keys(pStats).forEach(k => pStats[k].avgOcc = (pStats[k].totalOcc / pStats[k].count).toFixed(2));
+    Object.keys(rStats).forEach(k => {
+      if(rStats[k].count > 0) rStats[k].avgOcc = (rStats[k].totalOcc / rStats[k].count).toFixed(2);
     });
-
-    setStatsByRegion(provStats);
-    setStatsByRegional(regStats);
+    setStatsByRegion(pStats);
+    setStatsByRegional(rStats);
   };
 
   const getRegionStyle = (feature) => {
-    const keys = ['NAME_1', 'name', 'PROVINSI'];
-    let found = keys.find(k => feature.properties[k]);
-    const provName = found ? feature.properties[found].toUpperCase().trim() : "";
-    
-    const stat = statsByRegion[provName];
+    const provName = (feature.properties.NAME_1 || feature.properties.name || feature.properties.PROVINSI || "").toUpperCase().trim();
+    const provData = statsByRegion[provName];
+    const regName = Object.keys(regionalMapping).find(reg => regionalMapping[reg].includes(provName));
+    const regData = statsByRegional[regName] || { count: 0, avgOcc: 0, ericsson: 0, nokia: 0 };
+
     let color = "#f1f5f9"; 
-    
-    if (stat && stat.count > 0) {
-      const occ = parseFloat(stat.avgOcc);
-      if (occ >= 80) color = "#ef4444";
-      else if (occ >= 50) color = "#eab308";
-      else color = "#22c55e";
+
+    if (viewMode === 'occupancy') {
+      // INHERITANCE: Jika provinsi kosong, ambil data regional
+      const finalOcc = (provData && provData.count > 0) ? parseFloat(provData.avgOcc) : parseFloat(regData.avgOcc);
+      if ((provData && provData.count > 0) || (regData && regData.count > 0)) {
+        if (finalOcc >= 80) color = "#ef4444";
+        else if (finalOcc >= 70) color = "#ff7f00"; 
+        else color = "#eab308";
+      }
+    } else {
+      const eCount = (provData?.ericsson || 0) + (regData?.ericsson || 0);
+      const nCount = (provData?.nokia || 0) + (regData?.nokia || 0);
+      if (eCount > 0 || nCount > 0) color = eCount >= nCount ? "#2563eb" : "#10b981";
     }
     return { fillColor: color, weight: 1.5, color: 'white', fillOpacity: 0.6 };
   };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans p-6 overflow-x-hidden">
-      <div className="flex justify-between items-center mb-6">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
         <button onClick={() => navigate('/')} className="flex items-center gap-3 font-black text-red-600 uppercase tracking-widest text-lg hover:translate-x-[-5px] transition-all">
           <ArrowLeft size={28} strokeWidth={3} /> BACK
         </button>
-        <div className="text-right">
-          <h2 className="text-4xl font-black text-gray-900 uppercase italic tracking-tighter leading-none">GSS <span className="text-red-600">HEATMAP</span></h2>
-          <p className="text-[11px] text-gray-400 font-black uppercase mt-2 tracking-widest">BHCA OCCUPANCY (%) ANALYSIS</p>
+
+        <div className="bg-white p-1.5 rounded-full shadow-2xl border-2 border-gray-100 flex gap-2">
+          <button onClick={() => setViewMode('occupancy')} className={`px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'occupancy' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-red-600'}`}>
+            <Zap size={14} className="inline mr-2"/> OCCUPANCY
+          </button>
+          <button onClick={() => setViewMode('vendor')} className={`px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'vendor' ? 'bg-slate-900 text-white shadow-lg' : 'text-gray-400 hover:text-slate-900'}`}>
+            <Users size={14} className="inline mr-2"/> VENDOR
+          </button>
+        </div>
+
+        <div className="text-right font-black italic tracking-tighter leading-none">
+          <h2 className="text-4xl text-gray-900 uppercase">GSS <span className="text-red-600">{viewMode.toUpperCase()}</span></h2>
         </div>
       </div>
 
+      {/* MAP BOX */}
       <div className="w-full h-[55vh] bg-white rounded-[3rem] shadow-2xl border-[12px] border-white overflow-hidden relative mb-10">
         {!loading && geoData && (
           <MapContainer center={[-2.5, 118]} zoom={5} dragging={false} scrollWheelZoom={false} zoomControl={false} style={{ height: '100%', width: '100%' }}>
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
             <GeoJSON 
-              key="GSS-HEATMAP"
+              key={`${viewMode}-${sites.length}`}
               data={geoData} 
               style={getRegionStyle}
               onEachFeature={(f, layer) => {
-                const keys = ['NAME_1', 'name', 'PROVINSI'];
-                let found = keys.find(k => f.properties[k]);
-                const prov = found ? f.properties[found].toUpperCase().trim() : "UNKNOWN";
-                const s = statsByRegion[prov] || { count: 0, avgOcc: 0 };
-                
-                layer.on('click', () => navigate(`/detail/GSS/${prov}`));
-                layer.bindTooltip(`
-                  <div class="p-2 font-black uppercase text-[10px]">
-                    <div class="text-red-600 border-b mb-1 pb-1">${prov}</div>
-                    <div class="text-slate-800">${s.count} UNITS | ${s.avgOcc}% BHCA OCC</div>
-                  </div>
-                `, { sticky: true });
+                const provName = (f.properties.NAME_1 || f.properties.name || f.properties.PROVINSI || "").toUpperCase().trim();
+                const pData = statsByRegion[provName];
+
+                if (pData && pData.count > 0) {
+                  const logoSrc = pData.ericsson >= pData.nokia ? "/logo-ericsson.png" : "/logo-nokia.png";
+                  layer.on({ click: () => navigate(`/detail/GSS/${provName}`) });
+                  layer.bindTooltip(`
+                    <div class="p-4 font-black uppercase text-[10px] min-w-[200px] text-center">
+                      <div class="text-red-600 border-b mb-3 pb-1 text-xs italic font-black">${provName}</div>
+                      ${viewMode === 'occupancy' ? `
+                        <div class="text-slate-800 text-lg font-black">${pData.count} UNITS</div>
+                        <div class="text-slate-500 font-black">AVG BHCA OCC: ${pData.avgOcc}%</div>
+                      ` : `
+                        <div class="flex flex-col items-center gap-2">
+                          <img src="${logoSrc}" class="h-8 object-contain mb-1" />
+                          <div class="text-slate-800 text-sm mt-1 font-black italic">${pData.totalUsage.toLocaleString('id-ID')}</div>
+                          <div class="text-[8px] text-gray-400 font-black uppercase">BHCA USAGE</div>
+                        </div>
+                      `}
+                    </div>
+                  `, { sticky: true });
+                }
               }}
             />
           </MapContainer>
         )}
-
+        
         {/* Legend */}
-        <div className="absolute top-6 left-6 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-gray-100">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3"><div className="w-3 h-3 bg-[#ef4444] rounded-full"></div><span className="text-[9px] font-black uppercase tracking-widest text-slate-600">&gt; 80% CRITICAL</span></div>
-            <div className="flex items-center gap-3"><div className="w-3 h-3 bg-[#eab308] rounded-full"></div><span className="text-[9px] font-black uppercase tracking-widest text-slate-600">50-80% WARNING</span></div>
-            <div className="flex items-center gap-3"><div className="w-3 h-3 bg-[#22c55e] rounded-full"></div><span className="text-[9px] font-black uppercase tracking-widest text-slate-600">&lt; 50% GOOD</span></div>
+        <div className="absolute top-6 left-6 z-[1000] bg-white/90 backdrop-blur-md p-5 rounded-[2rem] shadow-xl border border-gray-100 min-w-[200px]">
+          <p className="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">{viewMode === 'occupancy' ? 'BHCA Load Level' : 'Dominant Vendor'}</p>
+          <div className="space-y-3 font-black italic uppercase">
+            {viewMode === 'occupancy' ? (
+              <>
+                <div className="flex items-center gap-3"><div className="w-4 h-4 bg-[#ef4444] rounded-lg shadow-sm"></div><span className="text-[10px] text-slate-700">&gt; 80% Critical</span></div>
+                <div className="flex items-center gap-3"><div className="w-4 h-4 bg-[#ff7f00] rounded-lg shadow-sm"></div><span className="text-[10px] text-slate-700">70-80% Warning</span></div>
+                <div className="flex items-center gap-3"><div className="w-4 h-4 bg-[#eab308] rounded-lg shadow-sm"></div><span className="text-[10px] text-slate-700">&lt; 70% Good</span></div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3"><div className="w-4 h-4 bg-[#2563eb] rounded-lg shadow-sm"></div><span className="text-[10px] text-slate-700">Ericsson</span></div>
+                <div className="flex items-center gap-3"><div className="w-4 h-4 bg-[#10b981] rounded-lg shadow-sm"></div><span className="text-[10px] text-slate-700">Nokia</span></div>
+              </>
+            )}
           </div>
         </div>
-
-        <button onClick={() => setIsBatchModalOpen(true)} className="absolute bottom-6 right-6 z-[1000] flex items-center gap-2 px-8 py-4 bg-red-600 text-white rounded-full text-xs font-black shadow-2xl hover:bg-black transition-all uppercase italic tracking-widest">
-          <FileSpreadsheet size={18} /> IMPORT GSS DATA
-        </button>
+        <button onClick={() => setIsBatchModalOpen(true)} className="absolute bottom-6 right-6 z-[1000] flex items-center gap-2 px-8 py-4 bg-red-600 text-white rounded-full text-xs font-black shadow-2xl hover:bg-black transition-all uppercase italic tracking-widest leading-none font-sans"><FileSpreadsheet size={18} /> IMPORT GSS DATA</button>
       </div>
 
-      {/* REGIONAL SUMMARY */}
-      <div className="bg-white rounded-[3rem] shadow-xl p-10 border-4 border-white mb-20">
-        <div className="flex items-center gap-5 mb-10 border-b border-gray-100 pb-8">
-          <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-xl"><LayoutGrid size={32} /></div>
-          <div>
-            <h3 className="text-3xl font-black text-gray-900 italic uppercase tracking-tighter leading-none">Regional Summary</h3>
-            <p className="text-[11px] text-gray-400 font-black uppercase tracking-widest mt-2">GSS BHCA Performance Overview</p>
+      {/* REGIONAL SUMMARY DENGAN NATIONWIDE (DYNAMIC) */}
+      <div className="bg-white rounded-[3rem] shadow-xl p-10 border-4 border-white mb-20 mt-10">
+        <div className="flex flex-col md:flex-row md:items-center gap-5 mb-10 border-b border-gray-100 pb-8">
+          <div className="flex items-center gap-4">
+             <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-xl"><LayoutGrid size={32} /></div>
+             <div>
+                <h3 className="text-3xl font-black text-gray-900 italic uppercase tracking-tighter leading-none">Regional Summary</h3>
+                <p className="text-[11px] text-gray-400 font-black uppercase tracking-widest mt-2">Aggregated Infrastructure Data</p>
+             </div>
           </div>
-          <div className="ml-auto bg-slate-50 px-8 py-4 rounded-3xl border border-slate-100 flex items-center gap-6">
+          
+          <div className="md:ml-auto flex items-center gap-6 bg-slate-50 px-8 py-4 rounded-3xl border border-slate-100 font-black shadow-inner">
              <div className="text-right border-r pr-6 border-slate-200">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">GSS Nodes</p>
-                <p className="text-3xl font-black text-slate-800 italic leading-none">{sites.length}</p>
+                <p className="text-[9px] text-slate-400 uppercase tracking-widest leading-none mb-2">Nationwide Nodes</p>
+                <p className="text-3xl text-slate-800 italic leading-none">{sites.length}</p>
              </div>
              <div>
-                <p className="text-[9px] font-black text-red-400 uppercase tracking-widest">Avg BHCA Occ</p>
-                <p className="text-3xl font-black text-red-600 italic leading-none">
-                  {(sites.reduce((a, b) => a + parseFloat(String(b.bhca_occupancy || 0).replace(',','.')), 0) / (sites.length || 1)).toFixed(2)}%
-                </p>
+                {viewMode === 'occupancy' ? (
+                  <>
+                    <p className="text-[9px] text-red-400 uppercase tracking-widest leading-none mb-2">Global BHCA Load</p>
+                    <p className="text-3xl text-red-600 italic leading-none">
+                      {(sites.reduce((acc, curr) => acc + cleanNum(curr.bhca_occupancy), 0) / (sites.length || 1)).toFixed(2)}%
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[9px] text-blue-400 uppercase tracking-widest leading-none mb-2">Total BHCA Usage</p>
+                    <p className="text-3xl text-blue-600 italic leading-none">
+                      {sites.reduce((acc, curr) => acc + cleanNum(curr.bhca_usage), 0).toLocaleString('id-ID')}
+                    </p>
+                  </>
+                )}
              </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {Object.entries(statsByRegional).sort((a, b) => b[1].count - a[1].count).map(([name, data]) => (
-            <div key={name} className="bg-gray-50/50 p-6 rounded-[2.5rem] border-2 border-transparent hover:border-red-500 hover:bg-white transition-all group shadow-sm">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 group-hover:text-red-500">{name}</p>
-              <div className="flex flex-col gap-2">
+          {Object.entries(statsByRegional).map(([name, data]) => (
+            <div key={name} onClick={() => navigate(`/regional/GSS/${name}`)} className="bg-gray-50/50 p-6 rounded-[2.5rem] border-2 border-transparent hover:border-red-500 hover:bg-white transition-all group shadow-sm font-black uppercase italic cursor-pointer transform hover:scale-105">
+              <p className="text-[10px] text-gray-400 tracking-widest mb-4 group-hover:text-red-500">{name}</p>
+              <div className="flex flex-col gap-3">
                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black text-slate-400 uppercase italic">Nodes</span>
-                    <span className="text-2xl font-black text-slate-800 italic group-hover:text-red-600">{data.count}</span>
+                    <span className="text-[9px] text-slate-400 tracking-tighter">Nodes</span>
+                    <span className="text-2xl text-slate-800 group-hover:text-red-600">{data.count}</span>
                  </div>
-                 <div className="flex items-center justify-between border-t pt-2 border-slate-100">
-                    <span className="text-[9px] font-black text-slate-400 uppercase italic">Avg Occ</span>
-                    <span className={`text-sm font-black italic ${parseFloat(data.avgOcc) > 80 ? 'text-red-600' : 'text-green-600'}`}>
-                      {data.avgOcc}%
-                    </span>
+                 <div className="flex items-center justify-between border-t pt-3 border-slate-100">
+                    {viewMode === 'occupancy' ? (
+                      <>
+                        <span className="text-[9px] text-slate-400 tracking-tighter">Avg Load</span>
+                        <span className={`text-sm ${parseFloat(data.avgOcc) > 80 ? 'text-red-600' : 'text-green-600'}`}>{data.avgOcc}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[9px] text-slate-400 tracking-tighter">BHCA Usage</span>
+                        <span className="text-sm text-blue-600">{data.totalUsage.toLocaleString('id-ID')}</span>
+                      </>
+                    )}
                  </div>
               </div>
             </div>

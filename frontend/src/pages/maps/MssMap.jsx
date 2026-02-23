@@ -190,8 +190,8 @@ const MssMap = ({ element }) => {
               </>
             ) : (
               <>
-                <div className="flex items-center gap-3"><div className="w-4 h-4 bg-[#2563eb] rounded-lg shadow-sm"></div><span className="text-[10px] font-black italic uppercase text-slate-700">Ericsson Area</span></div>
-                <div className="flex items-center gap-3"><div className="w-4 h-4 bg-[#10b981] rounded-lg shadow-sm"></div><span className="text-[10px] font-black italic uppercase text-slate-700">Nokia Area</span></div>
+                <div className="flex items-center gap-3"><div className="w-4 h-4 bg-[#2563eb] rounded-lg shadow-sm"></div><span className="text-[10px] font-black italic uppercase text-slate-700">Ericsson</span></div>
+                <div className="flex items-center gap-3"><div className="w-4 h-4 bg-[#10b981] rounded-lg shadow-sm"></div><span className="text-[10px] font-black italic uppercase text-slate-700">Nokia</span></div>
               </>
             )}
           </div>
