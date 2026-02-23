@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userName  String
+  action    String
+  element   String
+  details   String
+  timestamp DateTime @default(now())
+}
+
+model DNS_Gn {
+  id            Int      @id @default(autoincrement())
+  siteIdCode    String   @unique
+  name          String
+  region        String
+  city          String?
+  status        String   @default("Active")
+  department    String?
+  ne_func       String?
+  ne_type       String?
+  vendor        String?
+  hw_ver        String?
+  hw_support    String?
+  sw_ver        String?
+  sw_support    String?
+  cap_1         String?
+  cap_1_unit    String?
+  cap_2         String?
+  cap_2_unit    String?
+  domain        String?
+  on_air_date   String?
+  site_location String?
+  loc_type      String?
+  loc_address   String?
+  lastUpdate    DateTime @default(now())
+}
+
+model DNS_Gi {
+  id             Int      @id @default(autoincrement())
+  siteIdCode     String   @unique
+  name           String
+  region         String
+  city           String?
+  status         String   @default("Active")
+  hw_type        String?
+  storage        String?
+  sw_vnf         String?
+  sw_vim         String?
+  capacity_kqps  String?
+  hw_eom         String?
+  hw_eos         String?
+  lastUpdate     DateTime @default(now())
+}
+
+model ADC {
+  id            Int      @id @default(autoincrement())
+  siteIdCode    String   @unique
+  name          String
+  region        String
+  city          String?
+  status        String   @default("Active")
+  vlan          String?
+  vrf_sdn       String?
+  lastUpdate    DateTime @default(now())
+}
+
+model MSS {
+  id                Int      @id @default(autoincrement())
+  siteIdCode        String   @unique 
+  name              String   // Untuk MSS Element (Contoh: MSMDN6)
+  region            String   // Untuk Peta (Contoh: SUMATERA UTARA)
+  regional_internal String?  // Untuk Kolom Regional (Contoh: Sumbagut)
+  vendor            String?
+  sub_capacity      String?
+  sub_usage         String?
+  sub_occupancy     String?
+  cpu_load          String?
+  vlr_category      String?
+  cpu_category      String?
+  status            String   @default("Active")
+  lastUpdate        DateTime @default(now())
+}
+
+model SGSN_MME {
+  id           Int      @id @default(autoincrement())
+  siteIdCode   String   @unique
+  name         String
+  region       String
+  city         String?
+  status       String   @default("Active")
+  users        String?
+  pdp          String?
+  throughput   String?
+  lastUpdate   DateTime @default(now())
+}
+
+model USC_STP {
+  id            Int      @id @default(autoincrement())
+  siteIdCode    String   @unique 
+  product       String?
+  name          String   // Kolom Name dari Excel
+  region        String   // Hasil mapping singkatan Name ke Provinsi
+  city          String?
+  status        String   @default("Active")
+  cap_stp       String?
+  cap_dra       String?
+  platform      String?
+  region_pool   String?
+  sw_version    String?
+  sw_eom        String?
+  sw_eofs       String?
+  sw_eos        String?
+  hw_eom        String?
+  hw_eos        String?
+  ttc           String?
+  next_roadmap  String?
+  tsa           String?
+  next_plan     String?
+  lastUpdate    DateTime @default(now())
+}
+
+model UDM_HSS {
+  id                Int      @id @default(autoincrement())
+  siteIdCode        String   @unique 
+  product           String?
+  name              String   
+  region            String   
+  city              String?
+  status            String   @default("Active")
+  platform          String?
+  region_pool       String?
+  fs_version        String?  
+  eaight            String?  
+  lcm               String?  
+  sw_version        String?  
+  sw_eom            String?
+  sw_eofs           String?
+  sw_eos            String?
+  hw_eom            String?
+  hw_eos            String?
+  ttc               String?
+  remark            String?
+  next_roadmap      String?
+  tsa               String?
+  lastUpdate        DateTime @default(now())
+}
+
+model TMGW {
+  id                Int      @id @default(autoincrement())
+  siteIdCode        String   @unique 
+  name              String   // Menampung TMGW Element (Contoh: ZBNA1)
+  region            String   // Menampung Provinsi untuk Peta (Contoh: ACEH)
+  regional_internal String?  // Menampung nama Regional (Contoh: Sumbagut)
+  status            String   @default("Active")
+  vendor            String?
+  scc_capacity      String?
+  scc_usage         String?
+  scc_util          String?
+  occ_category      String?
+  lastUpdate        DateTime @default(now())
+}
+
+model MGW {
+  id                Int      @id @default(autoincrement())
+  siteIdCode        String   @unique 
+  name              String   // MGW Element (Contoh: MGBNA3)
+  region            String   // Provinsi untuk Peta
+  regional_internal String?  // Nama Regional (Contoh: Sumbagut)
+  status            String   @default("Active")
+  vendor            String?
+  scc_capacity      String?
+  scc_usage         String?
+  scc_util          String?
+  occ_category      String?
+  lastUpdate        DateTime @default(now())
+}
+
+model GSS {
+  id                Int      @id @default(autoincrement())
+  siteIdCode        String   @unique 
+  name              String   // GSS Element
+  region            String   // Provinsi Peta
+  regional_internal String?  // Regional (Sumbagut, dll)
+  status            String   @default("Active")
+  vendor            String?
+  bhca_capacity     String?
+  bhca_usage        String?
+  bhca_occupancy    String?
+  cpu_load          String?
+  bhca_category     String?
+  cpu_category      String?
+  lastUpdate        DateTime @default(now())
+}
+
+model IMS {
+  id                  Int      @id @default(autoincrement())
+  siteIdCode          String   @unique 
+  product             String?
+  name                String   
+  region              String   
+  city                String?
+  status              String   @default("Active")
+  capacity            String?
+  platform            String?
+  region_pool         String?
+  fs_version          String?  
+  esight              String?  
+  lcm                 String?  
+  sw_version          String?  
+  sw_eom              String?
+  sw_eofs             String?
+  sw_eos              String?
+  hw_eom              String?
+  hw_eos              String?
+  ttc                 String?
+  next_roadmap        String?
+  tsa                 String?
+  next_plan_expansion String?
+  lastUpdate          DateTime @default(now())
+}
+
+model GGSN_THP {
+  id            Int      @id @default(autoincrement())
+  siteIdCode    String   @unique
+  name          String
+  region        String
+  city          String?
+  status        String   @default("Active")
+  throughput    String?
+  license       String?
+  lastUpdate    DateTime @default(now())
+}
+
+model GGSN_PDP {
+  id            Int      @id @default(autoincrement())
+  siteIdCode    String   @unique
+  name          String
+  region        String
+  city          String?
+  status        String   @default("Active")
+  pdp_context   String?
+  pdp_util      String?
+  lastUpdate    DateTime @default(now())
+}

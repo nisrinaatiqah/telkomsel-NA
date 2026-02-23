@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DAFTARKAN FONT TELKOMSEL */
+@font-face {
+  font-family: 'Telkomsel Batik Sans';
+  src: url('./assets/fonts/TelkomselBatikSans-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Telkomsel Batik Sans';
+  src: url('./assets/fonts/TelkomselBatikSans-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+/* SET DEFAULT FONT UNTUK SELURUH DASHBOARD */
+body {
+  font-family: 'Telkomsel Batik Sans', sans-serif;
+}
+
+.leaflet-container {
+  z-index: 1;
+}
