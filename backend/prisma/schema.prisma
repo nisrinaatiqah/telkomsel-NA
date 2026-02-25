@@ -228,25 +228,38 @@ model IMS {
 }
 
 model GGSN_THP {
-  id            Int      @id @default(autoincrement())
-  siteIdCode    String   @unique
-  name          String
-  region        String
-  city          String?
-  status        String   @default("Active")
-  throughput    String?
-  license       String?
-  lastUpdate    DateTime @default(now())
+  id                String   @id @default(uuid())
+  siteIdCode        String   @unique
+  name              String
+  region            String
+  city              String
+  regional_internal String   
+  department        String   
+  status            String?
+  vendor            String?
+  sub_capacity      String?
+  sub_usage         String?
+  sub_occupancy     String?
+  cpu_load          String?
+  vlr_category      String?
+  cpu_category      String?
+  updatedAt         DateTime @updatedAt
 }
 
 model GGSN_PDP {
-  id            Int      @id @default(autoincrement())
-  siteIdCode    String   @unique
-  name          String
-  region        String
-  city          String?
-  status        String   @default("Active")
-  pdp_context   String?
-  pdp_util      String?
-  lastUpdate    DateTime @default(now())
+  id                String   @id @default(uuid())
+  siteIdCode        String   @unique
+  name              String
+  region            String
+  city              String
+  regional_internal String   
+  department        String   
+  status            String?
+  vendor            String?
+  sub_capacity      String?
+  sub_usage         String?
+  sub_occupancy     String?
+  cpu_load          String?
+  vlr_category      String?
+  updatedAt         DateTime @updatedAt
 }

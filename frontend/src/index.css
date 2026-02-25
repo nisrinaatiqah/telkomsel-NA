@@ -22,6 +22,19 @@ body {
   font-family: 'Telkomsel Batik Sans', sans-serif;
 }
 
+/* Hilangkan box bawaan leaflet tooltip agar custom div kita terlihat bersih */
+.leaflet-tooltip.custom-usc-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Hilangkan panah kecil di bawah tooltip */
+.leaflet-tooltip-top.custom-usc-tooltip:before {
+  display: none !important;
+}
+
 .leaflet-container {
   z-index: 1;
 }

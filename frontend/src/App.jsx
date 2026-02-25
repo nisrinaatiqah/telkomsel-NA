@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import MapSelector from './pages/maps/MapSelector'; // Import Pintu Utama Map
-import DetailTable from './pages/DetailTable';
+import TableSelect from './pages/tables/TableSelector'; // IMPORT BARU: Folder tables
 import Login from './pages/Login'; 
 import Navbar from './components/Navbar';
 import Profile from './pages/Profile';
@@ -28,10 +28,7 @@ function App() {
         } />
         
         {/* 
-            PERBAIKAN DI SINI: 
-            Gunakan MapSelector sebagai pengganti MapView.
-            MapSelector lah yang akan menentukan apakah akan menampilkan 
-            AdcMap, MssMap, atau StandardMap berdasarkan elemen yang di-klik.
+            MapSelector: Menentukan element map yang dibuka (Adc, Mss, Ggsn, dll)
         */}
         <Route path="/map/:element" element={
           <ProtectedRoute>
@@ -40,10 +37,25 @@ function App() {
           </ProtectedRoute>
         } />
 
+        {/* 
+            PERBAIKAN DETAIL PROVINSI/KOTA:
+            Menggunakan TableSelect (Selector pusat yang mengarahkan ke file MssTable, AdcTable, dll)
+        */}
         <Route path="/detail/:element/:region" element={
           <ProtectedRoute>
             <Navbar />
-            <DetailTable />
+            <TableSelect isRegional={false} />
+          </ProtectedRoute>
+        } />
+
+        {/* 
+            PERBAIKAN DETAIL REGIONAL/CLUSTER:
+            Juga menggunakan TableSelect dengan props isRegional=true
+        */}
+        <Route path="/regional/:element/:regionalName" element={
+          <ProtectedRoute>
+            <Navbar />
+            <TableSelect isRegional={true} /> 
           </ProtectedRoute>
         } />
 
@@ -51,13 +63,6 @@ function App() {
           <ProtectedRoute>
             <Navbar />
             <Profile />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/regional/:element/:regionalName" element={
-          <ProtectedRoute>
-            <Navbar />
-            <DetailTable isRegional={true} /> 
           </ProtectedRoute>
         } />
 

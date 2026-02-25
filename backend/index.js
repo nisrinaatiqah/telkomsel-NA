@@ -25,7 +25,11 @@ const modelMap = {
     'GSS': prisma.gSS,
     // Jika nanti buat GGSN terpisah:
     'GGSN-THP': prisma.gGSN_THP, 
+    'GGSN/THP': prisma.gGSN_THP,
+    'GGSN THP': prisma.gGSN_THP,
     'GGSN-PDP': prisma.gGSN_PDP,
+    'GGSN/PDP': prisma.gGSN_PDP,
+    'GGSN PDP': prisma.gGSN_PDP,
 };
 
 const regionalToProvinces = {

@@ -15,6 +15,8 @@ import { tmgwConfig } from '../configs/tmgw';
 import { mgwConfig } from '../configs/mgw';
 import { gssConfig } from '../configs/gss';
 import { imsConfig } from '../configs/ims';
+import { ggsnThpConfig } from '../configs/ggsn-thp';
+import { ggsnPdpConfig } from '../configs/ggsn-pdp';
 
 const BatchImportModal = ({ isOpen, onClose, currentElement, onRefresh }) => {
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,10 @@ const BatchImportModal = ({ isOpen, onClose, currentElement, onRefresh }) => {
     'MGW': mgwConfig,
     'GSS': gssConfig,
     'IMS': imsConfig,
+    'GGSN-THP': ggsnThpConfig,
+    'GGSN-PDP': ggsnPdpConfig,
+    'GGSN/THP': ggsnThpConfig, 
+    'GGSN/PDP': ggsnPdpConfig,
   };
 
   const handleFileUpload = (e) => {
@@ -98,7 +104,7 @@ const BatchImportModal = ({ isOpen, onClose, currentElement, onRefresh }) => {
         // Menambahkan variasi penulisan agar 'MSS Element' terdeteksi
         const nameKeys = [
           'Name', 'NAME', 'Node', 'NODE', 'Node Name', 
-          'NE Name', 'NE NAME', 'SITE ID', 
+          'NE Name', 'NE NAME', 'SITE ID', 'GGSN Name', 'GGSN NAME',
           'MSS ELEMENT', 'MSS Element', 'MGW ELEMENT', 'MGW Element', 'TMGW ELEMENT', 'TMGW Element', 'GSS ELEMENT', 'GSS Element'
         ];
         
@@ -118,7 +124,7 @@ const BatchImportModal = ({ isOpen, onClose, currentElement, onRefresh }) => {
           'MSS ELEMENT', 'MSS DATA', 'MGW ELEMENT', 'MGW DATA', 'TMGW ELEMENT', 'TMGW DATA', 'GSS ELEMENT', 'GSS DATA'
         ];
 
-        if (!nameVal || invalidNames.includes(nameVal.toUpperCase())) {
+        if (!nameVal || nameVal === "" || invalidNames.includes(nameVal.toUpperCase())) {
             return null;
         }
 

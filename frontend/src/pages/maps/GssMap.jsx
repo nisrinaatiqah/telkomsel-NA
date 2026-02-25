@@ -264,4 +264,4 @@ const GssMap = ({ element }) => {
   );
 };
 
-export default GssMap;
+export default GssMap;  

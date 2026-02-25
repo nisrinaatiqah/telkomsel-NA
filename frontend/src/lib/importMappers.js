@@ -182,7 +182,7 @@ export const mappers = {
       sub_occupancy: String(row['Subscriber Occupancy (%)'] || "-"),
       cpu_load: String(row['CPU Load (%) MSS'] || "-"),
       vlr_category: String(row['VLR Occ Category'] || "-"),
-      cpu_category: String(row['CPU Load Category'] || "-"),
+      cpu_category: String(row['CPU Load Category'] || "-"),  
     };
   }
 };
