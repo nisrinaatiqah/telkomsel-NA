@@ -2,20 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ArrowLeft, FileSpreadsheet, LayoutGrid, Database, Users, Zap } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, LayoutGrid, Users, Zap, BarChart3, Activity } from 'lucide-react';
 import axios from 'axios'; 
 import BatchImportModal from '../../components/BatchImportModal';
 
-// --- HELPER PEMBERSIH ANGKA (ANTI GAGAL) ---
+// --- HELPER PEMBERSIH ANGKA ---
 const cleanNum = (v) => {
   if (v === undefined || v === null || v === "") return 0;
   let s = String(v).trim().replace('%', '');
-  
-  // Jika ada koma DAN titik (misal 1.200,50), hapus titik, ganti koma ke titik
   if (s.includes(',') && s.includes('.')) return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
-  // Jika hanya ada koma (misal 72,04), ganti ke titik
   if (s.includes(',')) return parseFloat(s.replace(',', '.')) || 0;
-  // Jika sudah format standar (72.04), langsung parse
   return parseFloat(s) || 0;
 };
 
@@ -25,6 +21,13 @@ const MssMap = ({ element }) => {
   const [sites, setSites] = useState([]);
   const [statsByRegion, setStatsByRegion] = useState({});
   const [statsByRegional, setStatsByRegional] = useState({});
+  
+  // State untuk ringkasan vendor
+  const [vendorSummary, setVendorSummary] = useState({
+    ericsson: { occ: 0, cpu: 0 },
+    nokia: { occ: 0, cpu: 0 }
+  });
+
   const [loading, setLoading] = useState(true);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('occupancy'); 
@@ -61,6 +64,13 @@ const MssMap = ({ element }) => {
   const processAdvancedStats = (allSites) => {
     const pStats = {};
     const rStats = {};
+    
+    // Penampung sementara untuk hitung rata-rata vendor nasional
+    const vCalc = {
+      ERICSSON: { totalOcc: 0, totalCpu: 0, count: 0 },
+      NOKIA: { totalOcc: 0, totalCpu: 0, count: 0 }
+    };
+
     Object.keys(regionalMapping).forEach(reg => {
       rStats[reg] = { count: 0, totalOcc: 0, totalUsage: 0, ericsson: 0, nokia: 0, avgOcc: 0 };
     });
@@ -69,14 +79,25 @@ const MssMap = ({ element }) => {
       const prov = (site.region || "UNKNOWN").toUpperCase().trim();
       const occ = cleanNum(site.sub_occupancy);
       const usage = cleanNum(site.sub_usage);
+      const cpu = cleanNum(site.cpu_load); 
       const vendor = String(site.vendor || "").toUpperCase();
 
       if (!pStats[prov]) pStats[prov] = { count: 0, totalOcc: 0, totalUsage: 0, ericsson: 0, nokia: 0 };
       pStats[prov].count += 1;
       pStats[prov].totalOcc += occ;
       pStats[prov].totalUsage += usage;
-      if (vendor.includes("ERICSSON")) pStats[prov].ericsson += 1;
-      else if (vendor.includes("NOKIA")) pStats[prov].nokia += 1;
+
+      if (vendor.includes("ERICSSON")) {
+        pStats[prov].ericsson += 1;
+        vCalc.ERICSSON.count += 1;
+        vCalc.ERICSSON.totalOcc += occ;
+        vCalc.ERICSSON.totalCpu += cpu;
+      } else if (vendor.includes("NOKIA")) {
+        pStats[prov].nokia += 1;
+        vCalc.NOKIA.count += 1;
+        vCalc.NOKIA.totalOcc += occ;
+        vCalc.NOKIA.totalCpu += cpu;
+      }
 
       const targetReg = Object.keys(regionalMapping).find(reg => regionalMapping[reg].includes(prov));
       if (targetReg) {
@@ -92,6 +113,19 @@ const MssMap = ({ element }) => {
     Object.keys(rStats).forEach(k => {
       if(rStats[k].count > 0) rStats[k].avgOcc = (rStats[k].totalOcc / rStats[k].count).toFixed(2);
     });
+
+    // Masukkan hasil hitungan ke State Vendor
+    setVendorSummary({
+      ericsson: {
+        occ: vCalc.ERICSSON.count > 0 ? (vCalc.ERICSSON.totalOcc / vCalc.ERICSSON.count).toFixed(2) : 0,
+        cpu: vCalc.ERICSSON.count > 0 ? (vCalc.ERICSSON.totalCpu / vCalc.ERICSSON.count).toFixed(2) : 0,
+      },
+      nokia: {
+        occ: vCalc.NOKIA.count > 0 ? (vCalc.NOKIA.totalOcc / vCalc.NOKIA.count).toFixed(2) : 0,
+        cpu: vCalc.NOKIA.count > 0 ? (vCalc.NOKIA.totalCpu / vCalc.NOKIA.count).toFixed(2) : 0,
+      }
+    });
+
     setStatsByRegion(pStats);
     setStatsByRegional(rStats);
   };
@@ -108,7 +142,7 @@ const MssMap = ({ element }) => {
       const finalOcc = (provData && provData.count > 0) ? parseFloat(provData.avgOcc) : parseFloat(regData.avgOcc);
       if ((provData && provData.count > 0) || (regData && regData.count > 0)) {
         if (finalOcc >= 80) color = "#ef4444";
-        else if (finalOcc >= 70) color = "#ff7f00"; // Diubah ke 70% agar lebih akurat (Warning)
+        else if (finalOcc >= 70) color = "#ff7f00";
         else color = "#eab308";
       }
     } else {
@@ -138,13 +172,28 @@ const MssMap = ({ element }) => {
 
         <div className="text-right font-black italic tracking-tighter">
           <h2 className="text-4xl text-gray-900 uppercase leading-none">MSS <span className="text-red-600">{viewMode.toUpperCase()}</span></h2>
+          <button 
+                      onClick={() => setIsBatchModalOpen(true)} 
+                      className="mt-3 flex items-center gap-2 px-6 py-2 bg-red-600 text-white rounded-full text-[9px] font-black shadow-lg hover:bg-black transition-all uppercase tracking-widest italic ml-auto"
+                    >
+                      <FileSpreadsheet size={20} /> IMPORT DATA
+                    </button>
         </div>
       </div>
 
-      {/* MAP BOX */}
-      <div className="w-full h-[55vh] bg-white rounded-[3rem] shadow-2xl border-[12px] border-white overflow-hidden relative mb-10">
+      {/* MAP BOX - HEIGHT GEDE 75vh & MAP DI-FREEZE */}
+      <div className="w-full h-[75vh] bg-white rounded-[3rem] shadow-2xl border-[12px] border-white overflow-hidden relative mb-10">
         {!loading && geoData && (
-          <MapContainer center={[-2.5, 118]} zoom={5} dragging={false} scrollWheelZoom={false} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+          <MapContainer 
+            center={[-2.5, 118]} 
+            zoom={5} 
+            dragging={false}           /* Freeze drag */
+            scrollWheelZoom={false}     /* Freeze scroll */
+            zoomControl={false}         /* Hapus button zoom */
+            doubleClickZoom={false}     /* Freeze double click */
+            touchZoom={false}           /* Freeze touch */
+            style={{ height: '100%', width: '100%' }}
+          >
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
             <GeoJSON 
               key={`${viewMode}-${sites.length}`}
@@ -178,6 +227,47 @@ const MssMap = ({ element }) => {
           </MapContainer>
         )}
         
+        {/* VENDOR SUMMARY CARDS (Muncul cuma kalau viewMode === 'vendor') */}
+        {viewMode === 'vendor' && (
+          <div className="absolute bottom-6 left-6 z-[1000] flex gap-4 animate-in fade-in slide-in-from-left-4 duration-500">
+              {/* Card Ericsson */}
+              <div className="bg-white/95 backdrop-blur-md p-4 rounded-[2.2rem] shadow-2xl border border-gray-100 flex items-center gap-4 w-52">
+                  <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg"><Activity size={18} /></div>
+                  <div>
+                      <p className="text-[8px] font-black text-blue-600 tracking-widest uppercase">Ericsson</p>
+                      <div className="flex gap-3 mt-1">
+                          <div>
+                             <p className="text-[6px] text-gray-400 font-bold">AVG OCC</p>
+                             <p className="text-xs font-black text-slate-800 italic">{vendorSummary.ericsson.occ}%</p>
+                          </div>
+                          <div className="border-l pl-3 border-gray-100">
+                             <p className="text-[6px] text-gray-400 font-bold">AVG CPU</p>
+                             <p className="text-xs font-black text-slate-800 italic">{vendorSummary.ericsson.cpu}%</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Card Nokia */}
+              <div className="bg-white/95 backdrop-blur-md p-4 rounded-[2.2rem] shadow-2xl border border-gray-100 flex items-center gap-4 w-52">
+                  <div className="p-3 bg-emerald-500 rounded-2xl text-white shadow-lg"><BarChart3 size={18} /></div>
+                  <div>
+                      <p className="text-[8px] font-black text-emerald-500 tracking-widest uppercase">Nokia</p>
+                      <div className="flex gap-3 mt-1">
+                          <div>
+                             <p className="text-[6px] text-gray-400 font-bold">AVG OCC</p>
+                             <p className="text-xs font-black text-slate-800 italic">{vendorSummary.nokia.occ}%</p>
+                          </div>
+                          <div className="border-l pl-3 border-gray-100">
+                             <p className="text-[6px] text-gray-400 font-bold">AVG CPU</p>
+                             <p className="text-xs font-black text-slate-800 italic">{vendorSummary.nokia.cpu}%</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+        )}
+
         {/* Legend */}
         <div className="absolute top-6 left-6 z-[1000] bg-white/90 backdrop-blur-md p-5 rounded-[2rem] shadow-xl border border-gray-100 min-w-[200px]">
           <p className="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">{viewMode === 'occupancy' ? 'Load Level' : 'Dominant Vendor'}</p>
@@ -196,11 +286,11 @@ const MssMap = ({ element }) => {
             )}
           </div>
         </div>
-        <button onClick={() => setIsBatchModalOpen(true)} className="absolute bottom-6 right-6 z-[1000] flex items-center gap-2 px-8 py-4 bg-red-600 text-white rounded-full text-xs font-black shadow-2xl hover:bg-black transition-all uppercase italic tracking-widest"><FileSpreadsheet size={18} /> IMPORT DATA</button>
       </div>
 
-      {/* REGIONAL SUMMARY DENGAN NATIONWIDE (DYNAMIC) */}
+      {/* REGIONAL SUMMARY */}
       <div className="bg-white rounded-[3rem] shadow-xl p-10 border-4 border-white mb-20">
+        {/* Konten summary bawah sama seperti sebelumnya */}
         <div className="flex flex-col md:flex-row md:items-center gap-5 mb-10 border-b border-gray-100 pb-8">
           <div className="flex items-center gap-4">
              <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-xl"><LayoutGrid size={32} /></div>

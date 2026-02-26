@@ -70,10 +70,10 @@ const MssTable = ({ sites, loading }) => {
       </div>
 
       {/* 2. TABEL DATA MSS */}
-      <div className="bg-white rounded-[3rem] shadow-2xl border-8 border-white overflow-hidden">
+      <div className="bg-white rounded-[3rem] shadow-2xl border-8 border-white overflow-hidden text-center">
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[1400px]">
-            <thead className="bg-slate-800 text-white">
+            <thead className="bg-slate-800 text-white text-center">
               <tr>
                 <th className="px-6 py-6 text-center w-20 border-r border-slate-700 font-black text-[10px] uppercase tracking-widest">No</th>
                 {columns.map(col => (
@@ -83,7 +83,7 @@ const MssTable = ({ sites, loading }) => {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 font-bold text-[12px] text-gray-700">
+            <tbody className="divide-y divide-gray-100 font-bold text-[12px] text-gray-700 text-center">
               {loading ? (
                 <tr><td colSpan="20" className="p-24 text-center animate-pulse uppercase font-black text-gray-300 tracking-widest text-xl">Loading MSS Infrastructure...</td></tr>
               ) : sites.length > 0 ? (
@@ -95,10 +95,15 @@ const MssTable = ({ sites, loading }) => {
                       
                       // Kondisi khusus: Mewarnai Kolom Kategori VLR/CPU jika mengandung CRITICAL
                       if (col.key === 'vlr_category' || col.key === 'cpu_category') {
-                        const isCrit = String(val).toUpperCase().includes('CRIT');
+                        const txt = String(val).toUpperCase();
+                        // Tentukan warna berdasarkan isi teks
+                        let colorClass = "bg-gray-100 text-gray-500"; // Default warna abu
+                        if (txt.includes('PREPARE')) colorClass = "bg-green-500 text-white shadow-md";
+                        if (txt.includes('MEDIUM'))  colorClass = "bg-orange-500 text-white shadow-md";
+                        if (txt.includes('LOW'))     colorClass = "bg-red-500 text-white shadow-md";
                         return (
                           <td key={col.key} className="px-6 py-6 border-r border-gray-50">
-                             <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isCrit ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>
+                             <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${colorClass}`}>
                                {val}
                              </span>
                           </td>

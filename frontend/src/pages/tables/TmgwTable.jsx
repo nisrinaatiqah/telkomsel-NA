@@ -55,12 +55,24 @@ const TmgwTable = ({ sites, loading }) => {
                     const isHigh = col.key === 'scc_util' && cleanNum(val) >= 80;
 
                     if (col.key === 'occ_category') {
-                        const isCrit = String(val).toUpperCase().includes('CRIT');
+                        // Variabel txt HARUS didefinisikan dulu seperti baris di bawah ini:
+                        const txt = String(val || "").toUpperCase(); 
+                        
+                        let colorClass = "bg-gray-100 text-gray-500"; // Warna standar abu-abu
+                        
+                        if (txt.includes('PREPARE')) {
+                            colorClass = "bg-green-600 text-white shadow-md";
+                        } else if (txt.includes('MEDIUM')) {
+                            colorClass = "bg-orange-500 text-white shadow-md";
+                        } else if (txt.includes('LOW')) {
+                            colorClass = "bg-red-600 text-white shadow-md";
+                        }
+
                         return (
-                          <td key={col.key} className="px-6 py-6 border-r border-gray-50 text-center">
-                             <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isCrit ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                               {val}
-                             </span>
+                            <td key={col.key} className="px-6 py-6 border-r border-gray-50 text-center">
+                            <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${colorClass}`}>
+                                {val || '-'}
+                            </span>
                           </td>
                         );
                     }

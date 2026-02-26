@@ -89,19 +89,6 @@ model MSS {
   lastUpdate        DateTime @default(now())
 }
 
-model SGSN_MME {
-  id           Int      @id @default(autoincrement())
-  siteIdCode   String   @unique
-  name         String
-  region       String
-  city         String?
-  status       String   @default("Active")
-  users        String?
-  pdp          String?
-  throughput   String?
-  lastUpdate   DateTime @default(now())
-}
-
 model USC_STP {
   id            Int      @id @default(autoincrement())
   siteIdCode    String   @unique 
@@ -127,30 +114,32 @@ model USC_STP {
   lastUpdate    DateTime @default(now())
 }
 
-model UDM_HSS {
-  id                Int      @id @default(autoincrement())
-  siteIdCode        String   @unique 
-  product           String?
-  name              String   
-  region            String   
-  city              String?
-  status            String   @default("Active")
-  platform          String?
-  region_pool       String?
-  fs_version        String?  
-  eaight            String?  
-  lcm               String?  
-  sw_version        String?  
-  sw_eom            String?
-  sw_eofs           String?
-  sw_eos            String?
-  hw_eom            String?
-  hw_eos            String?
-  ttc               String?
-  remark            String?
-  next_roadmap      String?
-  tsa               String?
-  lastUpdate        DateTime @default(now())
+// Tambahkan di schema.prisma
+model UDM_5G {
+  id            Int      @id @default(autoincrement())
+  siteIdCode    String   @unique
+  area          String?  // Area 1, Area 2, dst
+  name          String   // NE ID
+  region        String   // Provinsi untuk Peta
+  capacity      String?
+  usage         String?
+  occupancy     String?
+  lastUpdate    DateTime @default(now())
+}
+
+model UDM_VoLTE {
+  id            Int      @id @default(autoincrement())
+  siteIdCode    String   @unique
+  area          String?
+  name          String   
+  region        String   
+  be_capacity   String?
+  be_usage      String?
+  be_occupancy  String?
+  fe_capacity   String?
+  fe_usage      String?
+  fe_occupancy  String?
+  lastUpdate    DateTime @default(now())
 }
 
 model TMGW {
@@ -261,5 +250,21 @@ model GGSN_PDP {
   sub_occupancy     String?
   cpu_load          String?
   vlr_category      String?
+  updatedAt         DateTime @updatedAt
+}
+
+model SGSN_MME {
+  id                String   @id @default(uuid())
+  siteIdCode        String   @unique // Digunakan untuk skipDuplicate saat import
+  name              String
+  region            String   // Klasifikasi Provinsi untuk Peta
+  city              String?  // Kode Kota/POP
+  status            String?  @default("Active")
+  vendor            String?
+  regional_internal String?  // Regional dari Excel
+  department        String?  // Area dari Excel
+  sub_capacity      String?
+  sub_usage         String?
+  sub_occupancy     String?  // OCC [%]
   updatedAt         DateTime @updatedAt
 }

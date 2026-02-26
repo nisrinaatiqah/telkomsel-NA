@@ -64,7 +64,7 @@ const Navbar = () => {
             Network Architecture
           </h2>
           <p className="text-red-600 font-bold text-[9px] tracking-[0.25em] uppercase mt-1">
-            Data Potensi Nasional
+            Core
           </p>
         </div>
       </div>

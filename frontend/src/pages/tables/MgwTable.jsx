@@ -68,7 +68,7 @@ const MgwTable = ({ sites, loading }) => {
       </div>
 
       {/* 2. TABEL DATA MGW (DESAIN MSS) */}
-      <div className="bg-white rounded-[3rem] shadow-2xl border-8 border-white overflow-hidden text-left">
+      <div className="bg-white rounded-[3rem] shadow-2xl border-8 border-white overflow-hidden text-center">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest">
@@ -96,12 +96,24 @@ const MgwTable = ({ sites, loading }) => {
 
                       // Badge Kategori
                       if (col.key === 'occ_category') {
-                        const isCrit = String(val).toUpperCase().includes('CRIT') || String(val).toUpperCase().includes('HIGH');
+                        // Variabel txt HARUS didefinisikan dulu seperti baris di bawah ini:
+                        const txt = String(val || "").toUpperCase(); 
+                        
+                        let colorClass = "bg-gray-100 text-gray-500"; // Warna standar abu-abu
+                        
+                        if (txt.includes('PREPARE')) {
+                            colorClass = "bg-green-600 text-white shadow-md";
+                        } else if (txt.includes('MEDIUM')) {
+                            colorClass = "bg-orange-500 text-white shadow-md";
+                        } else if (txt.includes('LOW')) {
+                            colorClass = "bg-red-600 text-white shadow-md";
+                        }
+
                         return (
-                          <td key={col.key} className="px-6 py-6 border-r border-gray-50">
-                             <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isCrit ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>
-                               {val}
-                             </span>
+                            <td key={col.key} className="px-6 py-6 border-r border-gray-50 text-center">
+                            <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${colorClass}`}>
+                                {val || '-'}
+                            </span>
                           </td>
                         );
                       }

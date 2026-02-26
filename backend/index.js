@@ -23,13 +23,21 @@ const modelMap = {
     'TMGW': prisma.tMGW,
     'MGW': prisma.mGW,
     'GSS': prisma.gSS,
-    // Jika nanti buat GGSN terpisah:
     'GGSN-THP': prisma.gGSN_THP, 
     'GGSN/THP': prisma.gGSN_THP,
     'GGSN THP': prisma.gGSN_THP,
     'GGSN-PDP': prisma.gGSN_PDP,
     'GGSN/PDP': prisma.gGSN_PDP,
     'GGSN PDP': prisma.gGSN_PDP,
+    'SGSN-MME': prisma.sGSN_MME,
+    'SGSN/MME': prisma.sGSN_MME,
+    'SGSN MME': prisma.sGSN_MME,
+    'UDM-5G': prisma.uDM_5G,
+    'UDM/5G': prisma.uDM_5G,
+    'UDM 5G': prisma.uDM_5G,
+    'UDM-VoLTE': prisma.uDM_VoLTE,
+    'UDM/VoLTE': prisma.uDM_VoLTE,
+    'UDM VoLTE': prisma.uDM_VoLTE
 };
 
 const regionalToProvinces = {

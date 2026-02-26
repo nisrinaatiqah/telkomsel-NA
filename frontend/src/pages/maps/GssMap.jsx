@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ArrowLeft, FileSpreadsheet, LayoutGrid, Database, Users, Zap } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, LayoutGrid, Users, Zap, BarChart3, Activity } from 'lucide-react';
 import axios from 'axios'; 
 import BatchImportModal from '../../components/BatchImportModal';
 
@@ -21,9 +21,16 @@ const GssMap = ({ element }) => {
   const [sites, setSites] = useState([]);
   const [statsByRegion, setStatsByRegion] = useState({});
   const [statsByRegional, setStatsByRegional] = useState({});
+  
+  // State untuk ringkasan vendor nasional (Occupancy & CPU)
+  const [vendorSummary, setVendorSummary] = useState({
+    ericsson: { occ: 0, cpu: 0 },
+    nokia: { occ: 0, cpu: 0 }
+  });
+
   const [loading, setLoading] = useState(true);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState('occupancy'); // 'occupancy' atau 'vendor'
+  const [viewMode, setViewMode] = useState('occupancy'); 
 
   const regionalMapping = {
     "Regional Sumbagut": ["ACEH", "SUMATERA UTARA"],
@@ -57,22 +64,40 @@ const GssMap = ({ element }) => {
   const processAdvancedStats = (allSites) => {
     const pStats = {};
     const rStats = {};
+    
+    // Penampung hitungan vendor nasional
+    const vCalc = {
+      ERICSSON: { totalOcc: 0, totalCpu: 0, count: 0 },
+      NOKIA: { totalOcc: 0, totalCpu: 0, count: 0 }
+    };
+
     Object.keys(regionalMapping).forEach(reg => {
       rStats[reg] = { count: 0, totalOcc: 0, totalUsage: 0, ericsson: 0, nokia: 0, avgOcc: 0 };
     });
 
     allSites.forEach(site => {
       const prov = (site.region || "UNKNOWN").toUpperCase().trim();
-      const occ = cleanNum(site.bhca_occupancy);
-      const usage = cleanNum(site.bhca_usage);
+      const occ = cleanNum(site.bhca_occupancy); // Pakai field GSS
+      const usage = cleanNum(site.bhca_usage);     // Pakai field GSS
+      const cpu = cleanNum(site.cpu_load);       // Pastikan field cpu_load ada di data API GSS
       const vendor = String(site.vendor || "").toUpperCase();
 
       if (!pStats[prov]) pStats[prov] = { count: 0, totalOcc: 0, totalUsage: 0, ericsson: 0, nokia: 0 };
       pStats[prov].count += 1;
       pStats[prov].totalOcc += occ;
       pStats[prov].totalUsage += usage;
-      if (vendor.includes("ERICSSON")) pStats[prov].ericsson += 1;
-      else if (vendor.includes("NOKIA")) pStats[prov].nokia += 1;
+
+      if (vendor.includes("ERICSSON")) {
+        pStats[prov].ericsson += 1;
+        vCalc.ERICSSON.count += 1;
+        vCalc.ERICSSON.totalOcc += occ;
+        vCalc.ERICSSON.totalCpu += cpu;
+      } else if (vendor.includes("NOKIA")) {
+        pStats[prov].nokia += 1;
+        vCalc.NOKIA.count += 1;
+        vCalc.NOKIA.totalOcc += occ;
+        vCalc.NOKIA.totalCpu += cpu;
+      }
 
       const targetReg = Object.keys(regionalMapping).find(reg => regionalMapping[reg].includes(prov));
       if (targetReg) {
@@ -88,6 +113,19 @@ const GssMap = ({ element }) => {
     Object.keys(rStats).forEach(k => {
       if(rStats[k].count > 0) rStats[k].avgOcc = (rStats[k].totalOcc / rStats[k].count).toFixed(2);
     });
+
+    // Update state Vendor Summary Nasional
+    setVendorSummary({
+      ericsson: {
+        occ: vCalc.ERICSSON.count > 0 ? (vCalc.ERICSSON.totalOcc / vCalc.ERICSSON.count).toFixed(2) : 0,
+        cpu: vCalc.ERICSSON.count > 0 ? (vCalc.ERICSSON.totalCpu / vCalc.ERICSSON.count).toFixed(2) : 0,
+      },
+      nokia: {
+        occ: vCalc.NOKIA.count > 0 ? (vCalc.NOKIA.totalOcc / vCalc.NOKIA.count).toFixed(2) : 0,
+        cpu: vCalc.NOKIA.count > 0 ? (vCalc.NOKIA.totalCpu / vCalc.NOKIA.count).toFixed(2) : 0,
+      }
+    });
+
     setStatsByRegion(pStats);
     setStatsByRegional(rStats);
   };
@@ -101,7 +139,6 @@ const GssMap = ({ element }) => {
     let color = "#f1f5f9"; 
 
     if (viewMode === 'occupancy') {
-      // INHERITANCE: Jika provinsi kosong, ambil data regional
       const finalOcc = (provData && provData.count > 0) ? parseFloat(provData.avgOcc) : parseFloat(regData.avgOcc);
       if ((provData && provData.count > 0) || (regData && regData.count > 0)) {
         if (finalOcc >= 80) color = "#ef4444";
@@ -138,10 +175,19 @@ const GssMap = ({ element }) => {
         </div>
       </div>
 
-      {/* MAP BOX */}
-      <div className="w-full h-[55vh] bg-white rounded-[3rem] shadow-2xl border-[12px] border-white overflow-hidden relative mb-10">
+      {/* MAP BOX - FIXED/FROZEN & HEIGHT 75vh */}
+      <div className="w-full h-[75vh] bg-white rounded-[3rem] shadow-2xl border-[12px] border-white overflow-hidden relative mb-10">
         {!loading && geoData && (
-          <MapContainer center={[-2.5, 118]} zoom={5} dragging={false} scrollWheelZoom={false} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+          <MapContainer 
+            center={[-2.5, 118]} 
+            zoom={5} 
+            dragging={false}           /* Disable Drag */
+            scrollWheelZoom={false}     /* Disable Scroll */
+            zoomControl={false}         /* Hide Controls */
+            doubleClickZoom={false}     /* Disable Double Click */
+            touchZoom={false}           /* Disable Touch Zoom */
+            style={{ height: '100%', width: '100%' }}
+          >
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
             <GeoJSON 
               key={`${viewMode}-${sites.length}`}
@@ -175,6 +221,47 @@ const GssMap = ({ element }) => {
           </MapContainer>
         )}
         
+        {/* VENDOR SUMMARY CARDS (Bottom Left) - Cuma muncul di mode Vendor */}
+        {viewMode === 'vendor' && (
+          <div className="absolute bottom-6 left-6 z-[1000] flex gap-4 animate-in fade-in slide-in-from-left-4 duration-500">
+              {/* Card Ericsson */}
+              <div className="bg-white/95 backdrop-blur-md p-4 rounded-[2.2rem] shadow-2xl border border-gray-100 flex items-center gap-4 w-52">
+                  <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg"><Activity size={18} /></div>
+                  <div>
+                      <p className="text-[8px] font-black text-blue-600 tracking-widest uppercase">Ericsson GSS</p>
+                      <div className="flex gap-3 mt-1 font-sans font-black italic">
+                          <div>
+                             <p className="text-[6px] text-gray-400">AVG OCC</p>
+                             <p className="text-xs text-slate-800">{vendorSummary.ericsson.occ}%</p>
+                          </div>
+                          <div className="border-l pl-3 border-gray-100">
+                             <p className="text-[6px] text-gray-400">AVG CPU</p>
+                             <p className="text-xs text-slate-800">{vendorSummary.ericsson.cpu}%</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Card Nokia */}
+              <div className="bg-white/95 backdrop-blur-md p-4 rounded-[2.2rem] shadow-2xl border border-gray-100 flex items-center gap-4 w-52">
+                  <div className="p-3 bg-emerald-500 rounded-2xl text-white shadow-lg"><BarChart3 size={18} /></div>
+                  <div>
+                      <p className="text-[8px] font-black text-emerald-500 tracking-widest uppercase">Nokia GSS</p>
+                      <div className="flex gap-3 mt-1 font-sans font-black italic">
+                          <div>
+                             <p className="text-[6px] text-gray-400">AVG OCC</p>
+                             <p className="text-xs text-slate-800">{vendorSummary.nokia.occ}%</p>
+                          </div>
+                          <div className="border-l pl-3 border-gray-100">
+                             <p className="text-[6px] text-gray-400">AVG CPU</p>
+                             <p className="text-xs text-slate-800">{vendorSummary.nokia.cpu}%</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+        )}
+
         {/* Legend */}
         <div className="absolute top-6 left-6 z-[1000] bg-white/90 backdrop-blur-md p-5 rounded-[2rem] shadow-xl border border-gray-100 min-w-[200px]">
           <p className="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">{viewMode === 'occupancy' ? 'BHCA Load Level' : 'Dominant Vendor'}</p>
@@ -193,10 +280,13 @@ const GssMap = ({ element }) => {
             )}
           </div>
         </div>
-        <button onClick={() => setIsBatchModalOpen(true)} className="absolute bottom-6 right-6 z-[1000] flex items-center gap-2 px-8 py-4 bg-red-600 text-white rounded-full text-xs font-black shadow-2xl hover:bg-black transition-all uppercase italic tracking-widest leading-none font-sans"><FileSpreadsheet size={18} /> IMPORT GSS DATA</button>
+
+        <button onClick={() => setIsBatchModalOpen(true)} className="absolute bottom-6 right-6 z-[1000] flex items-center gap-2 px-8 py-4 bg-red-600 text-white rounded-full text-xs font-black shadow-2xl hover:bg-black transition-all uppercase italic tracking-widest leading-none pointer-events-auto">
+          <FileSpreadsheet size={18} /> IMPORT GSS DATA
+        </button>
       </div>
 
-      {/* REGIONAL SUMMARY DENGAN NATIONWIDE (DYNAMIC) */}
+      {/* REGIONAL SUMMARY */}
       <div className="bg-white rounded-[3rem] shadow-xl p-10 border-4 border-white mb-20 mt-10">
         <div className="flex flex-col md:flex-row md:items-center gap-5 mb-10 border-b border-gray-100 pb-8">
           <div className="flex items-center gap-4">
@@ -264,4 +354,4 @@ const GssMap = ({ element }) => {
   );
 };
 
-export default GssMap;  
+export default GssMap;

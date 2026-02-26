@@ -9,6 +9,7 @@ import MgwMap from './MgwMap';
 import UscMap from './UscMap';
 import DnsGnMap from './DnsGnMap';
 import DnsGiMap from './DnsGiMap';
+import SgsnMap from './SgsnMap';
 
 const MapSelector = () => {
   const { element } = useParams();
@@ -17,7 +18,7 @@ const MapSelector = () => {
   // 1. decodeURIComponent: Mengubah %20 kembali menjadi spasi asli
   // 2. toUpperCase: Menyamakan semua menjadi huruf besar agar tidak salah deteksi
   // 3. replace('-', ' '): Mengubah strip menjadi spasi agar 'DNS-Gn' jadi 'DNS GN'
-  const cleanElement = element ? decodeURIComponent(element).toUpperCase().replace('-', ' ') : "";
+  const cleanElement = element ? decodeURIComponent(element).toUpperCase().replace(/-/g, ' ') : "";
 
   // CASE SWITCHER MENGGUNAKAN cleanElement (HURUF BESAR SEMUA)
   if (cleanElement.includes('ADC')) {
@@ -52,6 +53,11 @@ const MapSelector = () => {
   if (cleanElement.includes('DNS GI')) {
     return <DnsGiMap element="DNS GI" />;
   }
+
+  if (cleanElement.includes('SGSN MME')) {
+    return <SgsnMap element="SGSN MME" />;
+  }
+  
 
   // Jika tidak ada yang cocok (seperti DNS Gi, SGSN, dll), pakai tampilan Standar
   const normalizedElement = element ? element.replace('-', '/') : "";

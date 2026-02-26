@@ -137,6 +137,7 @@ const TmgwMap = ({ element }) => {
 
         <div className="text-right font-black italic tracking-tighter leading-none">
           <h2 className="text-4xl text-gray-900 uppercase">TMGW <span className="text-red-600">{viewMode.toUpperCase()}</span></h2>
+          <button onClick={() => setIsBatchModalOpen(true)} className="absolute bottom-6 right-6 z-[1000] flex items-center gap-2 px-8 py-4 bg-red-600 text-white rounded-full text-xs font-black shadow-2xl hover:bg-black transition-all uppercase italic tracking-widest leading-none font-sans"><FileSpreadsheet size={18} /> IMPORT DATA</button>
         </div>
       </div>
 
@@ -195,7 +196,6 @@ const TmgwMap = ({ element }) => {
             )}
           </div>
         </div>
-        <button onClick={() => setIsBatchModalOpen(true)} className="absolute bottom-6 right-6 z-[1000] flex items-center gap-2 px-8 py-4 bg-red-600 text-white rounded-full text-xs font-black shadow-2xl hover:bg-black transition-all uppercase italic tracking-widest leading-none font-sans"><FileSpreadsheet size={18} /> IMPORT TMGW DATA</button>
       </div>
 
       {/* REGIONAL SUMMARY (DINAMIS) */}

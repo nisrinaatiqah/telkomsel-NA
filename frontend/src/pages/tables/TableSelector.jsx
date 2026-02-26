@@ -1,10 +1,9 @@
-// src/pages/tables/TableSelector.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft } from 'lucide-react';
 
-// Import elemen tabel
+// Import elemen tabel (Pastikan file-file ini ADA di folder yang sama)
 import MssTable from './MssTable';
 import GssTable from './GssTable';
 import MgwTable from './MgwTable';
@@ -16,40 +15,59 @@ import AdcTable from './AdcTable';
 import ImsTable from './ImsTable';
 import UdmHssTable from './UdmHssTable';
 import GgsnTable from './GgsnTable';
+import SgsnTable from './SgsnTable';
 
 const TableSelector = ({ isRegional = false }) => {
   const params = useParams();
   const navigate = useNavigate();
 
-  // --- LOGIKA NORMALISASI NAMA ELEMENT (SANGAT PENTING) ---
-  // Kita buat satu variabel 'finalElement' untuk digunakan di mana-mana
-  let finalElement = params.element || "";
+  // --- PERBAIKAN 1: NORMALISASI NAMA ELEMENT ---
+  const rawElement = params.element ? decodeURIComponent(params.element) : "";
   
-  if (finalElement.toUpperCase() === 'USC-STP') {
-    finalElement = 'USC/STP';
-  } else if (finalElement.toUpperCase() === 'UDM-HSS') {
-    finalElement = 'UDM/HSS';
-  } else {
-    finalElement = finalElement.replace(/-/g, ' '); // Ganti strip jadi spasi (DNS-Gn jadi DNS Gn)
-  }
+  const getNormalizedNames = (raw) => {
+    const upper = raw.toUpperCase();
+    
+    // Khusus UDM: Pertahankan pemisah agar API backend tahu tipe spesifiknya
+    if (upper.includes('UDM') && upper.includes('5G')) return { display: 'UDM 5G', api: 'UDM 5G' };
+    if (upper.includes('UDM') && upper.includes('VOLTE')) return { display: 'UDM VoLTE', api: 'UDM VoLTE' };
+    
+    // Default UDM / HSS lama
+    if (upper === 'UDM-HSS' || upper === 'UDM HSS') return { display: 'UDM/HSS', api: 'UDM/HSS' };
+
+    // USC
+    if (upper.includes('USC')) return { display: 'USC/STP', api: 'USC/STP' };
+    
+    // SGSN
+    if (upper.includes('SGSN')) return { display: 'SGSN/MME', api: 'SGSN/MME' };
+    
+    // Lainnya (Ganti strip jadi spasi: DNS-Gn -> DNS Gn)
+    const clean = raw.replace(/-/g, ' ');
+    return { display: clean, api: clean };
+  };
+
+  const names = getNormalizedNames(rawElement);
+  const finalElement = names.display; // Untuk Judul dan Switch Case
+  const apiElement = names.api;     // Untuk Request ke Backend
 
   const locationName = isRegional ? params.regionalName : params.region;
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // --- PERBAIKAN 2: SINKRONISASI FETCH DATA ---
   useEffect(() => {
     const fetchData = async () => {
-      if (!finalElement || !locationName) return;
+      if (!apiElement || !locationName) return;
       setLoading(true);
       
       try {
-        const encodedEl = encodeURIComponent(finalElement); 
+        const encodedEl = encodeURIComponent(apiElement); 
         const encodedLoc = encodeURIComponent(locationName);
         
         const apiUrl = isRegional 
           ? `http://localhost:5001/api/sites/regional/${encodedEl}/${encodedLoc}`
           : `http://localhost:5001/api/sites/${encodedEl}/${encodedLoc}`;
         
+        console.log("Fetching Table Data from:", apiUrl); 
         const res = await axios.get(apiUrl);
         setSites(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
@@ -60,14 +78,13 @@ const TableSelector = ({ isRegional = false }) => {
       }
     };
     fetchData();
-  }, [finalElement, locationName, isRegional]);
+  }, [apiElement, locationName, isRegional]);
 
   const renderTable = () => {
-    // Props yang dikirim ke semua file di folder tables
     const tableProps = { sites, loading, element: finalElement, locationName };
     
-    // Normalisasi KEY Case agar switch case kebal spasi/garis miring
-    const key = finalElement.toUpperCase().replace(/[\s\-/]/g, '');
+    // PERBAIKAN 3: Key pemilih case yang lebih bersih (Hapus spasi & simbol)
+    const key = finalElement.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
     switch (key) {
       case 'MSS':     return <MssTable {...tableProps} />;
@@ -79,10 +96,21 @@ const TableSelector = ({ isRegional = false }) => {
       case 'USCSTP':  return <UscStpTable {...tableProps} />;
       case 'ADC':     return <AdcTable {...tableProps} />;
       case 'IMS':     return <ImsTable {...tableProps} />;
-      case 'UDMHSS':     return <UdmHssTable {...tableProps} />;
+      
+      // Semua varian UDM diarahkan ke UdmHssTable
+      case 'UDM5G': return <UdmHssTable {...tableProps} />;
+      case 'UDMVOLTE': return <UdmHssTable {...tableProps} />;
+      
       case 'GGSNTHP': return <GgsnTable {...tableProps} />;
-      case 'GGSNPDP': return <GgsnTable {...tableProps} />;    
-      default:        return <div className="p-40 text-center font-black opacity-10">ELEMENT NOT IDENTIFIED</div>;
+      case 'GGSNPDP': return <GgsnTable {...tableProps} />;  
+      case 'SGSNMME': return <SgsnTable {...tableProps} />;      
+      default:        
+        return (
+            <div className="p-40 text-center flex flex-col items-center gap-4 opacity-20">
+                <span className="text-4xl font-black italic uppercase tracking-tighter">Element {finalElement} Not Defined</span>
+                <p className="font-bold text-xs uppercase tracking-widest">Please check the TableSelector component cases.</p>
+            </div>
+        );
     }
   };
 
@@ -97,12 +125,12 @@ const TableSelector = ({ isRegional = false }) => {
           <ArrowLeft size={20} strokeWidth={3} /> Back to Map
         </button>
 
-        {/* HEADER AREA: Pakai variabel 'finalElement' agar error reference hilang */}
+        {/* HEADER AREA */}
         <div className="mb-14">
             <h1 className="text-7xl font-black text-gray-900 tracking-tighter uppercase italic leading-none drop-shadow-sm">
               {finalElement}
             </h1>
-            <h2 className="text-4xl font-black text-red-600 uppercase tracking-tighter mt-3 flex items-center gap-4">
+            <h2 className="text-4xl font-black text-red-600 uppercase tracking-tighter mt-3 flex items-center gap-4 italic">
               <span className="h-1.5 w-12 bg-red-600 inline-block"></span>
               {locationName}
             </h2>

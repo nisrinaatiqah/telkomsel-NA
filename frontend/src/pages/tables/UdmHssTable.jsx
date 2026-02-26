@@ -1,177 +1,154 @@
 import React from 'react';
-import { Database, Zap, HardDrive, ShieldCheck, Download, Info, Activity, AlertCircle } from 'lucide-react';
+import { Database, Zap, Activity, Users, Download, Server } from 'lucide-react';
 
-const UdmHssTable = ({ sites, loading, element, locationName }) => {
-  // --- HELPER: Format Nama Elemen untuk Judul ---
-  const displayElement = element || "UDM/HSS";
-
-  // --- LOGIKA RECAP (Summary Cards) ---
-  const totalNodes = sites.length;
-  const uniqueProducts = new Set(sites.map(s => s.product).filter(p => p !== "-")).size;
-  const lifecycleAlerts = sites.filter(s => s.hw_eos && s.hw_eos !== '-').length;
+const UdmHssTable = ({ sites = [], loading, element, locationName }) => {
   
-  // Mencari Platform paling umum (misal: Cloud atau ATCA)
-  const getTopPlatform = () => {
-    if (sites.length === 0) return "-";
-    const counts = {};
-    sites.forEach(s => counts[s.platform] = (counts[s.platform] || 0) + 1);
-    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  // --- HELPER 1: Handled Percent (Format Tegak & Real 2 Desimal) ---
+  const formatDisplayPercent = (val) => {
+    // Pastikan nilai 0 atau kosong tetap tampil 0,00%
+    if (val === undefined || val === null || val === "" || val === "0" || val === 0) return "0,00%";
+    
+    let rawStr = String(val).replace(',', '.').trim();
+    let num = parseFloat(rawStr);
+    
+    if (isNaN(num)) return "0,00%";
+
+    // Handled desimal murni Excel: Jika angka kecil (0.xxxx) maka kali 100
+    if (num > 0 && num < 1) num = num * 100;
+
+    return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
   };
 
-  // --- CONFIG KOLOM (Persis udmHssConfig.js) ---
-  const columns = [
-    { label: 'City', key: 'city' },
-    { label: 'Name', key: 'name' },
-    { label: 'Platform', key: 'platform' },
-    { label: 'Region Pool', key: 'region_pool' },
-    { label: 'Existing SW version', key: 'sw_version' },
-    { label: 'LCM', key: 'lcm' },
-    { label: 'SW EOS', key: 'sw_eos' },
-    { label: 'HW EOS', key: 'hw_eos' },
-    { label: 'TTC', key: 'ttc' },
-    { label: 'Next Roadmap', key: 'next_roadmap' },
+  // --- HELPER 2: Format Ribuan (Standard MSS) ---
+  const formatRibuan = (val) => {
+    if (val === undefined || val === null || val === "" || val === "-" || val === "0") return "0";
+    const cleanStr = String(val).replace(/\./g, '').replace(',', '.');
+    const num = parseFloat(cleanStr);
+    return isNaN(num) ? val : num.toLocaleString('id-ID');
+  };
+
+  // --- LOGIKA RECAP (Summary - Identik MSS) ---
+  const safeSites = Array.isArray(sites) ? sites : [];
+  const totalNodes = safeSites.length;
+  const isVoLTE = String(element || "").toUpperCase().includes('VOLTE');
+
+  const calculateGlobalAvg = (targetKey) => {
+    if (totalNodes === 0) return "0,00";
+    const sum = safeSites.reduce((acc, curr) => {
+        let v = parseFloat(String(curr[targetKey] || 0).replace(',', '.'));
+        if (v > 0 && v < 1) v = v * 100;
+        return acc + (isNaN(v) ? 0 : v);
+    }, 0);
+    return (sum / totalNodes).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // --- CONFIG KOLOM DINAMIS (Berdasarkan Schema Prisma Anda) ---
+  const columns = isVoLTE ? [
+    { label: 'AREA', key: 'area' },
+    { label: 'NE ID', key: 'name' },
+    { label: 'BE USAGE', key: 'be_usage' },
+    { label: 'BE OCC [%]', key: 'be_occupancy' },
+    { label: 'FE USAGE', key: 'fe_usage' },
+    { label: 'FE OCC [%]', key: 'fe_occupancy' },
+  ] : [
+    { label: 'AREA', key: 'area' },
+    { label: 'NE ID', key: 'name' },
+    { label: 'CAPACITY', key: 'capacity' },
+    { label: 'USAGE', key: 'usage' },
+    { label: '5G OCC [%]', key: 'occupancy' },
   ];
 
-  // --- FUNGSI EXPORT CSV ---
   const handleExportCSV = () => {
-    if (sites.length === 0) return alert("Tidak ada data untuk di-export");
-    // Header lengkap sesuai config database
-    const headers = ["No", "City", "Name", "Platform", "Region Pool", "FS Version", "Eaight", "LCM", "SW Version", "SW EOM", "SW EOFS", "SW EOS", "HW EOM", "HW EOS", "TTC", "Remark", "Next Roadmap", "TSA"].join(",");
-    
-    const rows = sites.map((s, i) => {
-      const rowData = [
-        i + 1, s.city, s.name, s.platform, s.region_pool, s.fs_version, s.eaight, s.lcm, 
-        s.sw_version, s.sw_eom, s.sw_eofs, s.sw_eos, s.hw_eom, s.hw_eos, s.ttc, s.remark, 
-        s.next_roadmap, s.tsa
-      ].map(val => `"${val || '-'}"`);
-      return rowData.join(",");
-    });
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
+    if (totalNodes === 0) return alert("Tidak ada data");
+    const headers = ["No", ...columns.map(c => c.label)].join(",");
+    const rows = safeSites.map((site, i) => [
+        i + 1,
+        ...columns.map(col => `"${site[col.key] || '-'}"`)
+    ].join(","));
     const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `Inventory_UDM_HSS_${locationName}.csv`);
-    document.body.appendChild(link);
+    link.href = encodeURI("data:text/csv;charset=utf-8," + [headers, ...rows].join("\n"));
+    link.download = `UDM_Report_${element}_${locationName}.csv`;
     link.click();
-    document.body.removeChild(link);
   };
 
   return (
     <div className="text-left animate-in fade-in duration-500">
       
-      {/* 1. RECAP CARDS (IDENTIK DENGAN MSS: TEBAL & TEGAK) */}
+      {/* 1. CARDS SUMMARY (IDENTIK MSS) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border-4 border-white flex items-center gap-5 transition-transform hover:scale-105">
-          <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-inner"><Database size={28}/></div>
+          <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-inner"><Server size={28}/></div>
           <div>
-            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1">Total Nodes</p>
-            <p className="text-4xl font-black text-gray-800 italic leading-none">{totalNodes}</p>
+            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Nodes</p>
+            <p className="text-4xl font-black text-slate-800 italic leading-none">{totalNodes}</p>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border-4 border-white flex items-center gap-5 transition-transform hover:scale-105">
-          <div className="p-4 bg-purple-100 text-purple-600 rounded-2xl"><Activity size={28}/></div>
+          <div className="p-4 bg-red-100 text-red-600 rounded-2xl"><Zap size={28} fill="currentColor"/></div>
           <div>
-            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1">Products</p>
-            <p className="text-3xl font-black text-slate-800 italic leading-none">{uniqueProducts}</p>
+            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Avg Occupancy</p>
+            <p className="text-3xl font-black text-red-600 italic leading-none">
+              {calculateGlobalAvg(isVoLTE ? 'be_occupancy' : 'occupancy')}%
+            </p>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border-4 border-white flex items-center gap-5 transition-transform hover:scale-105">
-          <div className="p-4 bg-blue-100 text-blue-600 rounded-2xl"><HardDrive size={28}/></div>
+          <div className="p-4 bg-blue-100 text-blue-600 rounded-2xl"><Users size={28}/></div>
           <div>
-            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1">Platform Type</p>
-            <p className="text-2xl font-black text-slate-800 italic leading-none uppercase truncate max-w-[120px]">{getTopPlatform()}</p>
+            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Core Access</p>
+            <p className="text-2xl font-black text-slate-800 italic leading-none uppercase">Validated</p>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border-4 border-white flex items-center gap-5 transition-transform hover:scale-105">
-          <div className="p-4 bg-red-100 text-red-600 rounded-2xl"><AlertCircle size={28}/></div>
+          <div className="p-4 bg-yellow-100 text-yellow-600 rounded-2xl"><Activity size={28}/></div>
           <div>
-            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1">HW EOS Alerts</p>
-            <p className="text-4xl font-black text-red-600 italic leading-none">{lifecycleAlerts}</p>
+            <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Inventory</p>
+            <p className="text-3xl font-black text-slate-800 italic leading-none uppercase">Synced</p>
           </div>
         </div>
       </div>
 
-      {/* ACTION HEADER */}
-      <div className="flex justify-end mb-4">
-        <button onClick={handleExportCSV} className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-100 rounded-2xl text-[10px] font-black uppercase shadow-sm text-gray-700 hover:bg-gray-50 transition-all">
-          <Download size={14}/> Export Inventory CSV
-        </button>
-      </div>
-
-      {/* 2. TABEL DATA (DESAIN MSS: SLATE HEADER & NORMAL BODY) */}
-      <div className="bg-white rounded-[3.5rem] shadow-2xl border-8 border-white overflow-hidden shadow-gray-200/50">
+      {/* 2. TABEL (HEADER SLATE, BODY TEGAK CENTER, BOLD MSS) */}
+      <div className="bg-white rounded-[3rem] shadow-2xl border-8 border-white overflow-hidden text-center">
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[1600px]">
-            <thead className="bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest">
+          <table className="w-full">
+            <thead className="bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest text-center">
               <tr>
-                <th className="px-6 py-6 text-center w-20 border-r border-slate-700 font-black">No</th>
-                {columns.map(col => (
-                  <th key={col.key} className="px-6 py-6 whitespace-nowrap border-r border-slate-700 last:border-0 font-black">
-                    {col.label}
-                  </th>
-                ))}
+                <th className="px-6 py-6 border-r border-slate-700 w-20">No</th>
+                {columns.map(col => <th key={col.key} className="px-6 py-6 whitespace-nowrap border-r border-slate-700 last:border-0">{col.label}</th>)}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 font-bold text-[12px] text-gray-700">
-              {loading ? (
-                <tr><td colSpan="20" className="p-24 text-center animate-pulse uppercase font-black text-gray-300 tracking-widest text-xl">Polling UDM/HSS Database...</td></tr>
-              ) : sites.length > 0 ? (
-                sites.map((site, index) => (
-                  <tr key={index} className="hover:bg-red-50/40 transition-colors group cursor-default">
-                    <td className="px-6 py-6 text-center border-r border-gray-100 text-gray-400 font-medium bg-gray-50/50">{index + 1}</td>
-                    {columns.map(col => {
-                      const val = site[col.key] || '-';
-                      
-                      // Node Name Style
-                      if (col.key === 'name') {
-                        return (
-                          <td key={col.key} className="px-6 py-6 whitespace-nowrap border-r border-gray-50 group-hover:bg-white/50 transition-colors">
-                            {val}
-                          </td>
-                        );
-                      }
+            
+            <tbody className="divide-y divide-gray-100 font-bold text-[12px] text-gray-700 uppercase">
+              {safeSites.map((site, index) => (
+                <tr key={index} className="hover:bg-red-50/50 transition-colors group">
+                  {/* NOMOR: Italic Abu-abu khas template kita */}
+                  <td className="px-6 py-6 text-center border-r border-gray-100 text-gray-400 font-medium bg-gray-50/50 italic">{index + 1}</td>
+                  
+                  {columns.map(col => {
+                    const raw = site[col.key];
+                    const isName = col.key === 'name';
+                    const isPerc = col.key.toLowerCase().includes('occ') || col.key === 'occupancy';
+                    const isNum = col.key.includes('usage') || col.key.includes('capacity');
 
-                      // Life Cycle Date Warnings (Pill Style tegak)
-                      if ((col.key === 'sw_eos' || col.key === 'hw_eos') && val !== '-') {
-                        return (
-                          <td key={col.key} className="px-6 py-6 border-r border-gray-50">
-                             <span className="text-red-600 font-black underline decoration-red-200 decoration-2">{val}</span>
-                          </td>
-                        );
-                      }
-
-                      return (
-                        <td key={col.key} className="px-6 py-6 whitespace-nowrap border-r border-gray-50 group-hover:bg-white/50 transition-colors">
-                          {val}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                   <td colSpan="20" className="p-40 text-center text-gray-300">
-                     <div className="flex flex-col items-center gap-4 opacity-20">
-                        <HardDrive size={100} strokeWidth={1} />
-                        <p className="text-3xl font-black uppercase tracking-[0.2em] leading-none">Subscribed Profile DB Not Linked</p>
-                     </div>
-                   </td>
+                    return (
+                      <td key={col.key} className={`px-6 py-6 border-r border-gray-50 whitespace-nowrap text-center transition-colors group-hover:text-red-600 ${isName ? 'text-slate-700' : ''}`}>
+                        {isPerc ? formatDisplayPercent(raw) : (isNum ? formatRibuan(raw) : (raw || '-'))}
+                      </td>
+                    );
+                  })}
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
+          {!loading && totalNodes === 0 && (
+              <div className="p-40 text-center text-gray-300 font-black uppercase text-2xl tracking-[0.2em] opacity-10">Data Connection Ready</div>
+          )}
         </div>
       </div>
-      
-      {/* 3. DECORATIVE FOOTER */}
-      <div className="mt-8 flex justify-between px-10 opacity-30 items-center">
-        <div className="flex gap-4">
-        </div>
-      </div>
-
     </div>
   );
 };

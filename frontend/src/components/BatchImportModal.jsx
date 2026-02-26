@@ -9,7 +9,6 @@ import { dnsGnConfig } from '../configs/dns-gn';
 import { dnsGiConfig } from '../configs/dns-gi';
 import { adcConfig } from '../configs/adc';
 import { mssConfig } from '../configs/mss';
-import { udmHssConfig } from '../configs/udm-hss';
 import { uscStpConfig } from '../configs/usc-stp';
 import { tmgwConfig } from '../configs/tmgw';
 import { mgwConfig } from '../configs/mgw';
@@ -17,6 +16,9 @@ import { gssConfig } from '../configs/gss';
 import { imsConfig } from '../configs/ims';
 import { ggsnThpConfig } from '../configs/ggsn-thp';
 import { ggsnPdpConfig } from '../configs/ggsn-pdp';
+import { sgsnConfig } from '../configs/sgsn-mme'; 
+import { udm5gConfig } from '../configs/udm-5g'; 
+import { udmVolteConfig } from '../configs/udm-volte'; 
 
 const BatchImportModal = ({ isOpen, onClose, currentElement, onRefresh }) => {
   const [loading, setLoading] = useState(false);
@@ -30,9 +32,7 @@ const BatchImportModal = ({ isOpen, onClose, currentElement, onRefresh }) => {
     'DNS Gi': dnsGiConfig,
     'ADC': adcConfig,
     'MSS': mssConfig,
-    'UDM/HSS': udmHssConfig,
     'USC/STP': uscStpConfig,
-    'UDM-HSS': udmHssConfig,
     'USC-STP': uscStpConfig,
     'TMGW': tmgwConfig,
     'MGW': mgwConfig,
@@ -42,6 +42,14 @@ const BatchImportModal = ({ isOpen, onClose, currentElement, onRefresh }) => {
     'GGSN-PDP': ggsnPdpConfig,
     'GGSN/THP': ggsnThpConfig, 
     'GGSN/PDP': ggsnPdpConfig,
+    'SGSN-MME': sgsnConfig,
+    'SGSN/MME': sgsnConfig,
+    'SGSN MME': sgsnConfig,
+    'UDM 5G': udm5gConfig,
+    'UDM-5G': udm5gConfig,
+    'UDM/5G': udm5gConfig,
+    'UDM-VoLTE': udmVolteConfig,
+    'UDM/VoLTE': udmVolteConfig,
   };
 
   const handleFileUpload = (e) => {
@@ -103,8 +111,8 @@ const BatchImportModal = ({ isOpen, onClose, currentElement, onRefresh }) => {
         // --- PERBAIKAN 2: Perluas daftar kunci nama ---
         // Menambahkan variasi penulisan agar 'MSS Element' terdeteksi
         const nameKeys = [
-          'Name', 'NAME', 'Node', 'NODE', 'Node Name', 
-          'NE Name', 'NE NAME', 'SITE ID', 'GGSN Name', 'GGSN NAME',
+          'Name', 'NAME', 'Node', 'NODE', 'Node Name', 'NE ID', 'NE-ID',
+          'NE Name', 'NE NAME', 'SITE ID', 'GGSN Name', 'GGSN NAME', 'SGSN Name', 'SGSN NAME',
           'MSS ELEMENT', 'MSS Element', 'MGW ELEMENT', 'MGW Element', 'TMGW ELEMENT', 'TMGW Element', 'GSS ELEMENT', 'GSS Element'
         ];
         
@@ -115,12 +123,13 @@ const BatchImportModal = ({ isOpen, onClose, currentElement, onRefresh }) => {
             break; 
           }
         }
-
+        
+        console.log("Header Excel yang terdeteksi:", Object.keys(fileData[0]));
         // --- PERBAIKAN 3: Perluas daftar filter baris tidak valid ---
         // Menghindari baris summary atau header tabel di tengah Excel masuk ke database
         const invalidNames = [
           'NAME', 'NODE', 'NE NAME', 'NEXT ROADMAP',
-          'VLR - MSS', 'SUMMARY', 'NATIONWIDE', 'TOTAL',
+          'VLR - MSS', 'SUMMARY', 'NATIONWIDE', 'TOTAL', 
           'MSS ELEMENT', 'MSS DATA', 'MGW ELEMENT', 'MGW DATA', 'TMGW ELEMENT', 'TMGW DATA', 'GSS ELEMENT', 'GSS DATA'
         ];
 
